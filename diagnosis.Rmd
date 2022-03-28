@@ -1,0 +1,298 @@
+---
+title: "Spatial Outbreak Detection"
+author: "Yuanchen Wang, 1823306"
+date: "2022-2-08"
+output:
+  html_document:
+    df_print: paged
+subtitle: Workflow Report
+---
+
+
+#### load packages & data
+```{r}
+library('MCMCpack')
+library('ggplot2')
+load('spatial.Rdata')
+alpha = param_true[1]
+beta = param_true[2]
+gamma = param_true[3]
+Delta = param_true[4]
+a_theta = c(gamma,Delta,1-gamma-Delta)
+```
+
+
+#### Construct Prior and Likelihood from the model
+To simplify computation, here we first calculate priors and likelihoods in log form.
+```{r}
+# log density function of the Dirichlet distribution
+lddirichlet <- function(x,a) {
+  wh<-which(a!=0) # allow a for having 0s for some a_i
+  return(lgamma(sum(a[wh]))+sum((a[wh]-1)*log(x[wh])-lgamma(a[wh])))
+}
+
+# Log Prior density
+prior <- function(param,x){
+  # x: a matrix of x_it, outbreak indicator in location i at time t
+  alpha = param[1]
+  beta = param[2]
+  gamma = param[3]
+  Delta = param[4]
+  theta = c(gamma,Delta,1-gamma-Delta)
+  
+  alpha_prior = dgamma(alpha, shape = 6, log = T)
+  beta_prior = dgamma(beta, shape=6, log = T) 
+  
+  x <- as.matrix(x)
+  x_prior <- matrix(data = NA, nrow = 1, ncol = dim(x)[2])  
+  for (t in 1:dim(x)[1]){
+    p_t = local_prob(x[t,],d_inv,theta) # compute localized probability at time i
+    x_t_prior <- dbinom(x[t,],1,p_t,log = T)  # a vector of density for each x_t
+    x_prior <- rbind(x_prior,x_t_prior)
+  }
+  x_prior <- x_prior[-1,] # remove the 1st empty row
+	
+	gamma_Delta_prior = lddirichlet(theta,a_theta)
+
+  return(alpha_prior+beta_prior+x_prior+gamma_Delta_prior) # a matrix
+}
+
+
+# Log Likelihood
+# likelihood of y given x 
+likelihood <- function(param,x){
+    alpha = param[1]
+    beta = param[2]
+    pred = exp(alpha + beta*x)
+    
+    # each week has a lambda based on x_i
+    singlelikelihoods = dpois(y, lambda = pred, log = TRUE) # predicted lambda, y comes from above
+    # sum_all = sum(singlelikelihoods)
+    return(singlelikelihoods) # an matrix of likelihoods 
+}
+
+# likelihood of x given p(theta)
+likelihood_x <- function(x,theta){ 
+  likelihood_x <- matrix(data = NA, nrow = 1, ncol = dim(x)[2]) 
+  for (i in 1:dim(x)[1]){
+    res = dbinom(x[i,], 1, local_prob(x[i,],d_inv,theta), log = T)
+    likelihood_x <- rbind(likelihood_x,res)
+  }
+  likelihood_x <- likelihood_x[-1,] # remove the 1st empty row
+  return(sum(likelihood_x)) # likelihood for x given theta
+}
+
+
+# Posterior 
+posterior <- function(param,x){
+  return (likelihood(param,x) + prior(param,x)) # matrix + matrix
+}
+```
+
+
+#### Parameter Estimation using MCMC
+
+###### Algorithms for Bayesian Updating
+```{r}
+### Metropolis Hasting algorithm ###
+
+proposalfunction <- function(param){
+  # param: alpha,beta,gamma,Delta
+  tmp = rnorm(2, mean = param[c(1,2)], sd= rep(.2,2)) # proposal distribution of alpha,beta is Normal here
+  param[1] = tmp[1]
+  param[2] = tmp[2]
+  return(param)
+} 
+
+run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
+  # create chain to store alpha,beta,gamma,Delta
+  chain = matrix(NA,iterations+1,length(startvalue)) # each row: c(alpha,beta,gamma,Delta)
+  chain[1,] = startvalue # 1st row 
+  
+  # create chain_x to store x
+  t <- dim(x)[1] # total time
+  m <- dim(x)[2] # total locations
+  chain_x <- array(NA, c(iterations+1,t,m)) # create a 3 dimensional array
+  chain_x[1,,] <- x # startvalue for x at time 0
+  a <- 1 # scale parameter in Dirichlet distribution Dir(theta+a*theta_)
+  prob_alpha_beta = 0
+  prob_theta = 0
+  
+	# iterations
+  for (i in 1:iterations){
+    proposal = proposalfunction(chain[i,]) # propose new alpha, beta only
+    
+		# MH for alpha, beta
+    probab = exp(sum(posterior(proposal,x)) - sum(posterior(chain[i,],x))) # ratio
+    prob_alpha_beta[i] = probab  # record probability ratio
+    if (is.na(probab) == F & runif(1) < probab & proposal[2]>alpha) { # also reject beta if it's less than alpha
+      chain[i+1,] = proposal # accept alpha,beta
+      
+    }else{
+      chain[i+1,] = chain[i,] # reject
+    }
+    
+    # Dirichlet random walk
+    theta <- c(chain[i,3],chain[i,4],1-chain[i,3]-chain[i,4]) # current theta
+    theta_ = rdirichlet(1,a*theta+a_theta) # proposal for new theta
+    # ratio of likelihoods
+    prob1 <- likelihood_x(x,theta_) - likelihood_x(x, theta)
+    # 
+    prob2 <- lddirichlet(theta_, a_theta)-lddirichlet(theta, a_theta)
+    # proposal ratio
+    prob3 <- lddirichlet(theta,a_theta+a*theta_) - lddirichlet(theta_,a_theta+a*theta)
+    full_prob <- exp(prob1+prob2+prob3)
+    prob_theta[i] = full_prob  # record probability ratio
+     if (runif(1) < full_prob){ 
+      chain[i+1,3] = theta_[1] # accept gamma
+      chain[i+1,4] = theta_[2] # accept Delta
+      a = max(0,a-3) # adaptive approach on choosing scaling parameter a, to get close to 25% ratio
+     } else{a = a+1}
+    
+    
+    # n_case <- sum(chain_x[i,,]) # sum of x in ith iteration
+	  
+		# update x, Gibbs sampler
+    param <- chain[i+1,]
+    normalized_c <- 1/(exp(posterior(param,1))+exp(posterior(param,0))) 
+    for (j in 1:m){
+      chain_x[i+1,,j] = rbinom(t,1,exp(posterior(param,1))*normalized_c) # vector of proposed x for one location
+    }
+  }
+
+	# return acceptance for alpha,beta
+	acceptance = 1-mean(duplicated(chain[-(1:burnIn),c(1,2,3,4)]))
+  
+  # return(chain)
+  setClass(Class="res",
+         representation(
+            chain="matrix",
+            chain_x="array",
+            prob_alpha_beta="numeric",
+            prob_theta="numeric",
+            acceptance="numeric"
+          )
+  )
+  return(new('res',
+             chain = chain,
+             chain_x = chain_x,
+             prob_alpha_beta = prob_alpha_beta,
+             prob_theta = prob_theta,
+             acceptance = acceptance))
+}
+```
+
+
+
+###### Actual run of MCMC
+```{r}
+startvalue = c(alpha,beta,gamma,Delta) # initial values (we use the true value)
+iterations = 3000
+burnIn = 5 # 500
+
+start_time <- Sys.time()
+res <- run_metropolis_MCMC(startvalue,x,iterations,burnIn) # run MCMC
+end_time <- Sys.time()
+run_time <- end_time-start_time
+
+####### approximate running time for 3000 iterations with n=10 is 45mins #######
+paste('Running time of MCMC:',round(run_time,2),'mins.')
+```
+
+```{r}
+chain <- res@chain
+chain_x <- res@chain_x
+prob_alpha_beta <- res@prob_alpha_beta
+prob_theta <- res@prob_theta
+acceptance <- res@acceptance
+paste('Acceptance rate of parameters:',round(100*acceptance,4),'%')
+
+param_name = c('alpha','beta','gamma','Delta')
+param_true = c(alpha,beta,gamma,Delta)
+param_estimate = rep(0,length(param_name))
+for (i in 1:length(param_name)){
+  param_estimate[i] <- mean(chain[-(1:burnIn),i])
+}
+paste('We have the real values of parameters as:',list(round(param_true,2)))
+paste('We have the estimated values of parameters as:',list(round(param_estimate,2)))
+```
+
+
+
+###### Visualisation
+```{r}
+# visualization for model parameters
+
+# plot the histogram of the parameter distributions
+plot_hist <- function(burnIn,param_index,param_name,param_true){
+  hist(chain[-(1:burnIn),param_index],nclass=30, main=paste("Posterior of",param_name[param_index]), xlab="True value = red line" )
+  abline(v = mean(chain[-(1:burnIn),param_index]),col='blue')
+  abline(v = param_true[param_index], col="red" )
+}
+# plot the MCMC chains for the parameter
+plot_chain <- function(burnIn,param_index,param_name,param_true){
+  plot(chain[-(1:burnIn),param_index], type = "l", xlab="True value = red line" , main = paste("Chain values of",param_name[param_index]))
+  abline(h = param_true[param_index], col="red" )
+  abline(h = mean(chain[-(1:burnIn),param_index]),col='blue')
+}
+
+par(mfrow = c(3,3))
+for (i in 1:length(param_name)){
+  plot_hist(burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
+}
+for (i in 1:length(param_name)){
+  plot_chain(burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
+}
+```
+
+
+```{r}
+par(mfrow = c(2,2))
+for (i in 1:length(param_name)){
+  plot_chain(burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
+}
+```
+
+
+
+```{r}
+# visualizing x
+par(mfrow = c(2,2))
+
+s = apply(chain_x[-(1:burnIn),,],2:3,mean) # average x over iterations (row:time;col:location)
+s = as.vector(s)
+quantile.no = 400
+segments <- quantile(s,probs = seq(0,1,1/quantile.no))
+point <- unname(segments[c(1,quantile.no-1)])
+
+plot(s, xlab="Week Number,Location" , main = "Probability of having an outbreak")
+abline(h = point[1], col="red")
+abline(h = point[2], col='blue')
+
+
+# ROC curve
+df <- data.frame(s*100,x)
+names(df) <- c('prediction','label')
+
+library('pROC')
+roc(df$label,df$prediction,plot=TRUE, print.thres=TRUE, print.auc=TRUE, xlim=c(1,0))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

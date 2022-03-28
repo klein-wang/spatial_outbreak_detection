@@ -1,0 +1,110 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+load("data_maryland.RData")
+# m1 <- glm(y[,1]~x[,1],family=poisson(link = 'log')) # model for Allegany
+```
+Here, we are making an assumption that an outbreak is occurred only when it's larger than 86% quantile value of the positive cases for each location. We may consider using the ratio of no.case over population, but in real-life scenario, the population could get quite mobile from time to time, which makes the estimation of population for each city less reliable. 
+
+
+EDA
+```{r}
+raw_plot <- function(city_index,data){
+  plot(data[,city_index],type = 'l', main = paste('Covid cases in',colnames(data)[city_index]),xlab='Time(in days)',ylab='Number of cases')
+  abline(h = mean(data[,city_index]), col="red" )
+}
+
+par(mfrow=c(3,3))
+for (i in 1:9){ # plot first 9 counties
+  raw_plot(i+2,data)
+}
+```
+
+
+MCMC
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+##### Values for simulation
+N <- nrow
+
+##### now prepare dat for JAGS
+## N is the number of entries
+## y is the outcome in the data
+## V is the variance in the data
+dat <- list("N" = N, "y" = data$Allegany, "V" = data_x$Allegany+1)  # names list of numbers
+
+##### Initial values
+inits <- list( d = 0.0 )
+
+require(rjags)
+require(coda)
+```
+
+
+
+### JAGS
+
+```{r}
+# set up a model in BUGS (https://rstudio-pubs-static.s3.amazonaws.com/272658_ae4d482c86514674be17042c852ebbfc.html)
+
+cat("model
+    {
+
+    for ( i in 1:N ) {
+    
+    P[i] <- 1/V[i]
+    
+    y[i] ~ dnorm( d, P[i] )
+
+    }
+
+    ### Define the priors
+    d ~ dnorm( 0, 0.00001 )
+
+    ### Transform the ln(OR) to OR
+    OR <- exp( d )
+
+    }", file="aspirinFE.txt")
+```
+
+```{r}
+#### Set up the JAGS model and settings
+jags.m <- jags.model( file = "aspirinFE.txt", data=dat, inits=inits, n.chains=1, n.adapt=500 )
+```
+```{r}
+params <- c("d", "OR")
+
+## run JAGS and save posterior samples
+samps <- coda.samples( jags.m, params, n.iter=10000 )
+summary(samps)
+plot(samps)
+```
+
+
+
