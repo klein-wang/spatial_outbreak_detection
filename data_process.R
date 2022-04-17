@@ -32,7 +32,7 @@ for (i in 3:ncol){
   }
 }
 data <- data[t_include,]
-data_full <- data
+data_full <- data # used to calculate segments
 nrow = as.integer(dim(data)[1]/dense) # condense into weekly data # update nrow after choosing the time
 wh <- 0
 for(i in 1: nrow){wh[i] = (i-1)*dense+1}
@@ -52,7 +52,7 @@ for (i in 3:ncol){
 x <- data_x[,-(1:2)]
 ########### rate,lambda ##########
 y <- data[,-(1:2)]
-rate = apply(y,2,sum)/nrow # estimated lambda for each location, using MLE
+rate = apply(y,2,mean) # estimated lambda for each location, using MLE
 lambda = rate/pop # lambda by counties
 
 ########### distance matrix ##########
@@ -63,4 +63,24 @@ d_inv[3,4] = 0 # Baltimore to Baltimore city, fix the Inf
 d_inv[4,3] = 0 # Baltimore to Baltimore city, fix the Inf
 
 
-save(data,x,y,lambda,pop,d_inv,file = paste0(data_folder,"data_maryland.RData"))
+########### Find proper startvalue #############
+param_name <- c('alpha','beta','gamma','Delta')
+
+y_per_person <- y
+for (j in 1:dim(y)[2]){ # each column
+  y_per_person[,j] = y_per_person[,j]/pop[j]
+}
+lambda_outbreak <- as.matrix(y_per_person)[which(x==1)]
+lambda_no_outbreak <- as.matrix(y_per_person)[which(x==0)]
+
+max_p = 0.8
+alpha <- log(mean(lambda_no_outbreak)) # estimate on alpha
+beta <- log(mean(lambda_outbreak)) - alpha # estimate on beta
+gamma <- sum(x)/(dim(x)[1]*dim(x)[2]) # estimate on independent probability p
+Delta <- max_p - gamma
+startvalue <- c(alpha,beta,gamma,Delta)
+
+x <- as.matrix(x)
+y <- as.matrix(y)
+
+save(data,x,y,lambda,pop,d_inv,param_name,startvalue,file = paste0(read_folder,"data_maryland.RData"))
