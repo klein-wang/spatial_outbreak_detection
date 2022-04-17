@@ -46,7 +46,10 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 **Model parameters**
 
-&alpha
+&alpha; = log(0.52)
+&beta; = log(4.35)
+&gamma; = 0.22
+&Delta; = 0.58
 
 
 ## Evaluation
