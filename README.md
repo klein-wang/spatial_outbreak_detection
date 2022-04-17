@@ -49,12 +49,6 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 | spatial | &alpha;, &beta;, &gamma;, &Delta; | 3000 | 500 |
 
 
-| d | d |
-| --- | --- |
-| d | d |
-| d | d |
-
-
 ### Maryland Covid Data
 
 **Model parameters**
