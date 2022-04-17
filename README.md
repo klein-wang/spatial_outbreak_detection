@@ -12,70 +12,28 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 ## Code structure
 ```
-├── generate_data_simple.R
-├── generate_data_spatial.R
-├── ckpt
-│   └── ccks
-│       └── role
-│           ├── best.pdparams   # 模型参数
-│           ├── .ipynb_checkpoints
-│           └── test_pred.json  # 预测结果
-├── conf
-│   └── ccks
-│       ├── enum_tag.dict
-│       ├── event_schema.json   # 事件元素对应的类型字典
-│       ├── role_tag.dict
-│       └── trigger_tag.dict
-├── data
-│   └── ccks
-│       ├── dev.json
-│       ├── enum
-│       │   ├── dev.tsv
-│       │   ├── test.tsv
-│       │   └── train.tsv
-│       ├── pre_submit
-│       │   ├── test_handle.csv
-│       │   └── test_row.csv
-│       ├── raw
-│       │   ├── ccks_task1_eval_data.txt    # 金融原始测试语料数据
-│       │   ├── ccks_task1_train.txt    # 金融原始训练语料数据
-│       │   ├── task1_train.txt    # 医疗诊断原始训练语料数据
-│       │   └── task1_unlabeld_val.txt    # 医疗诊断原始测试语料数据
-│       ├── role
-│       │   ├── dev.tsv
-│       │   ├── test.tsv
-│       │   └── train.tsv
-│       ├── sentence
-│       │   ├── dev.json    # 逐句切分后的数据集
-│       │   ├── test.json
-│       │   └── train.json
-│       ├── test.json   # ccks2021转成lic2021格式后的数据
-│       ├── train.json
-│       └── trigger
-│           ├── dev.tsv
-│           ├── test.tsv
-│           └── train.tsv
-├── data_prepare.py     # BIO标注
-├── log
-│   ├── endpoints.log
-│   └── workerlog.0
-├── post_process.py     # 处理成最终提交的格式:result.txt
-├── __pycache__
-│   └── utils.cpython-37.pyc
-├── run_event_element_extraction.sh     ###### 总控脚本 ######
-├── run_sequence_labeling.sh    # 序列标注训练和预测脚本
-├── sequence_labeling.py    # 模型代码
-├── submit
-│   └── result.txt      ###### 最终的提交文件 ######
-│   └── 医疗三元组.json      ###### 根据训练数集和预测结果所生成的医疗三元组 ######
-└── utils.py
+├── data_generate # generate data for both models
+│   ├── generate_data_simple.R # for simple independent model
+│   ├── generate_data_spatial.R # for spatially dependent model
+│   ├── london # geographical information of inner London area
+│   ├── simple.RData # data for simple independent model
+│   └── spatial.RData # data for spatially dependent model
+├── data_maryland
+│   ├── data_maryland.RData
+│   ├── MD_COVID-19_-_Cases_by_County.csv
+│   ├── MD_Distance_by_County.csv
+│   ├── MD_Population_by_County.csv
+│   └── Trips_by_Distance_-_Maryland_Counties.csv
+├── data_process.R # data process of Maryland raw data
+├── mcmc_maryland.R
+├── mcmc_simple_with_spatial.R # implement mcmc on spatial data using simple model
+├── mcmc_simple.R
+├── mcmc_spatial.R 
+├── diagnosis.Rmd # notebook for generated data
+├── maryland.Rmd # notebook for maryland data
+├── trials_mcmc # store mcmc trials
+└── README.md
 ```
-
-## Running environment
-Please refer to```requirement.txt```file.
-
-## Running Command
-
 
 
 ### Maryland Covid Data

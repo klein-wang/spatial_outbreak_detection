@@ -1,6 +1,6 @@
 # set parameters
-alpha = log(4) # = ln(3)
-beta = log(10) # = ln(6)
+alpha = log(2) # = ln(4)
+beta = log(3) # = ln(10)
 gamma = 7/52
 max_p = 0.8 # maximum p when all neighboring locations are having an outbreak
 Delta = max_p - gamma
@@ -57,6 +57,7 @@ for (k in 1:300){ # let p converge to have neighboring effect after 300 updates
     x_i[j] <- rbinom(1,size = 1,prob = p_i[j]) #p in location j at time i
     p_i <- local_prob(x_i,d_inv,a_theta) # update p_i
   }
+  # print(sum(x_i))
 }
 
 ### Generate data
@@ -76,7 +77,7 @@ for (i in 1:n){
 
 x <- x[-1,] # a matrix of x_it with time and location, remove the 1st empty column
 p <- p[-1,] # a matrix of p_it with time and location, remove the 1st empty column
-
+# rbind(apply(x,1,sum),apply(p,1,mean))
 
 
 # set parameters
@@ -95,3 +96,4 @@ y <- y[-1,] # a matrix of y_it with time and location, remove the 1st empty row
 param_true <- c(alpha,beta,gamma,Delta)
 param_name <- c('alpha','beta','gamma','Delta')
 save(param_true,param_name,y,lambda,x,p,m,d_inv, file = "spatial.RData")
+save(param_true,param_name,y,lambda,x,p,m,d_inv, file = paste0("spatial_ln(",exp(alpha),")_ln(",exp(beta),").RData"))

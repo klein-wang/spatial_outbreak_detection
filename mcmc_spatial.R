@@ -1,17 +1,19 @@
+library(MCMCpack)
 read_folder = 'data_generate/'
 
 # load data and parameters
 load(paste0(read_folder,"spatial.RData")) # param_true,param_name,y,lambda,x,p,m,d_inv
 alpha = param_true[1]
 beta = param_true[2]
-beta.min = log(1.2) # try (log(0),log(2))
+alpha.min = log(0.5) # try (log(0),log(2))
+beta.min = log(0.5) # try (log(0),log(2))
 gamma = param_true[3]
 Delta = param_true[4]
 a_theta = c(gamma,Delta,1-gamma-Delta)
 
 startvalue = c(alpha,beta,gamma,Delta) # initial value for alpha and beta
-iterations = 2000 #3000, running time 45mins
-burnIn = 300 #500
+iterations = 200 #3000, running time 65mins
+burnIn = 30 #500
 
 
 # local_prob function 
@@ -43,12 +45,13 @@ local_prob <- function(x_t,d_inv,theta){
 ############### Construct Posterior Distribution ################
 # log density function of the Dirichlet distribution
 lddirichlet <- function(x,a) {
+  # x: current value of theta, a: a_theta
   wh<-which(a!=0) # allow a for having 0s for some a_i
   return(lgamma(sum(a[wh]))+sum((a[wh]-1)*log(x[wh])-lgamma(a[wh])))
 }
 
 # Log Prior density
-prior <- function(param,x){
+prior <- function(param,x,sum=TRUE){
   # x: a matrix of x_it, outbreak indicator in location i at time t
   alpha = param[1]
   beta = param[2]
@@ -56,13 +59,13 @@ prior <- function(param,x){
   Delta = param[4]
   theta = c(gamma,Delta,1-gamma-Delta)
   
-  alpha_prior = dgamma(alpha, shape = 6, log = T) # shape size determined the support range of alpha
+  alpha_prior = dgamma(alpha-alpha.min, shape = 6, log = T) # shape size determined the support range of alpha
   beta_prior = dgamma(beta-beta.min, shape=6, log = T) # shape size determined the support range of beta
   
   x <- as.matrix(x)
   x_prior <- matrix(data = NA, nrow = 1, ncol = dim(x)[2])  
   for (t in 1:dim(x)[1]){
-    p_t = local_prob(x[t,],d_inv,theta) # compute localized probability at time i
+    p_t = local_prob(x[t,],d_inv,theta) # compute localized probability at time t
     x_t_prior <- dbinom(x[t,],1,p_t,log = T)  # a vector of density for each x_t
     x_prior <- rbind(x_prior,x_t_prior)
   }
@@ -70,7 +73,9 @@ prior <- function(param,x){
   
   gamma_Delta_prior = lddirichlet(theta,a_theta)
   
-  return(alpha_prior+beta_prior+x_prior+gamma_Delta_prior) # a matrix
+  if (sum==T){res = alpha_prior+beta_prior+sum(x_prior)+gamma_Delta_prior}
+  else {res = alpha_prior+beta_prior+x_prior+gamma_Delta_prior}
+  return(res)
 }
 
 
@@ -80,11 +85,9 @@ likelihood <- function(param,x){
   alpha = param[1]
   beta = param[2]
   pred = exp(alpha + beta*x)
-  
-  # each week has a lambda based on x_i
+
   singlelikelihoods = dpois(y, lambda = pred, log = TRUE) # predicted lambda, y comes from above
-  # sum_all = sum(singlelikelihoods)
-  return(singlelikelihoods) # an matrix of likelihoods 
+  return(singlelikelihoods) # a matrix of likelihoods 
 }
 
 # likelihood of x given p(theta)
@@ -100,8 +103,10 @@ likelihood_x <- function(x,theta){
 
 
 # Posterior 
-posterior <- function(param,x){
-  return (likelihood(param,x) + prior(param,x)) # matrix + matrix
+posterior <- function(param,x,sum=TRUE){
+  if (sum==T){res = sum(likelihood(param,x)) + prior(param,x,T)}
+  else {res = likelihood(param,x) + prior(param,x,F)}
+  return (res) # matrix + matrix
 }
 
 ### Metropolis Hasting algorithm ###
@@ -130,11 +135,12 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
   
   # iterations
   for (i in 1:iterations){
+    if(i %% 100==0){print(paste('iteration',i))}
     proposal = proposalfunction(chain[i,]) # propose new alpha, beta only
     
     # MH for alpha, beta
-    if (proposal[2]>beta.min){ # reject beta if it's smaller than beta.min
-      probab = exp(sum(posterior(proposal,x)) - sum(posterior(chain[i,],x))) # ratio
+    if (proposal[2]>beta.min & proposal[1]>alpha.min){ # reject beta if it's smaller than beta.min
+      probab = exp(posterior(proposal,x,T) - posterior(chain[i,],x,T)) # ratio
       prob_alpha_beta[i] = probab  # record probability ratio
       if (runif(1) < probab){ 
         chain[i+1,] = proposal # accept alpha,beta
@@ -148,12 +154,10 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
     # Dirichlet random walk
     theta <- c(chain[i,3],chain[i,4],1-chain[i,3]-chain[i,4]) # current theta
     theta_ = rdirichlet(1,a*theta+a_theta) # proposal for new theta
-    # ratio of likelihoods
-    prob1 <- likelihood_x(x,theta_) - likelihood_x(x, theta)
-    # 
-    prob2 <- lddirichlet(theta_, a_theta)-lddirichlet(theta, a_theta)
-    # proposal ratio
-    prob3 <- lddirichlet(theta,a_theta+a*theta_) - lddirichlet(theta_,a_theta+a*theta)
+    
+    prob1 <- likelihood_x(x,theta_) - likelihood_x(x, theta) # ratio of likelihoods
+    prob2 <- lddirichlet(theta_, a_theta)-lddirichlet(theta, a_theta) # ratio of proposal density
+    prob3 <- lddirichlet(theta,a_theta+a*theta_) - lddirichlet(theta_,a_theta+a*theta) # ratio of proposal density
     full_prob <- exp(prob1+prob2+prob3)
     prob_theta[i] = full_prob  # record probability ratio
     if (runif(1) < full_prob){ 
@@ -164,14 +168,20 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
     
     # update x, Gibbs sampler
     param <- chain[i+1,]
-    normalized_c <- 1/(exp(posterior(param,1))+exp(posterior(param,0))) 
+    # normalized_c <- 1/(exp(posterior(param,1,F))+exp(posterior(param,0,F)))
+    log_p1 <- posterior(param,1,F)
+    log_p0 <- posterior(param,0,F) # R = exp(log_p1)/(exp(log_p1)+exp(log_p0)), i.e. p1/(p1+p0)
+    M <- pmax(log_p0,log_p1)
+    R <- exp(log_p1-M)/(exp(log_p1-M)+exp(log_p0-M)) # re-write R, using log-sum-exp trick
+    
     for (j in 1:m){
-      chain_x[i+1,,j] = rbinom(t,1,exp(posterior(param,1))*normalized_c) # vector of proposed x for one location
+      chain_x[i+1,,j] = rbinom(t,1,R[,j]) # vector of proposed x for one location
     }
   }
   
-  # return acceptance for alpha,beta
-  acceptance = 1-mean(duplicated(chain[-(1:burnIn),c(1:4)]))
+  # return acceptances
+  acceptance_alpha_beta = 1-mean(duplicated(chain[-(1:burnIn),c(1:2)]))
+  acceptance_theta = 1-mean(duplicated(chain[-(1:burnIn),c(3:4)]))
   
   # return(chain)
   setClass(Class="res",
@@ -180,7 +190,8 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
              chain_x="array",
              prob_alpha_beta="numeric",
              prob_theta="numeric",
-             acceptance="numeric"
+             acceptance_alpha_beta="numeric",
+             acceptance_theta="numeric"
            )
   )
   return(new('res',
@@ -188,7 +199,8 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
              chain_x = chain_x,
              prob_alpha_beta = prob_alpha_beta,
              prob_theta = prob_theta,
-             acceptance = acceptance))
+             acceptance_alpha_beta = acceptance_alpha_beta,
+             acceptance_theta = acceptance_theta))
 }
 
 # trace plots & histgrams
@@ -222,7 +234,7 @@ plot_x <- function(chain_x,x){
   for (j in wh){ abline(v = j, col='green') }
   
   # ROC curve
-  df <- data.frame(s*100,x)
+  df <- data.frame(s*100,as.vector(x))
   names(df) <- c('chain_x','x')
   library('pROC')
   roc(df$x,df$chain_x,plot=TRUE, print.thres=TRUE, print.auc=TRUE)
@@ -242,9 +254,13 @@ find_beta <- function(beta_){
   chain_x <- res@chain_x
   prob_alpha_beta <- res@prob_alpha_beta
   prob_theta <- res@prob_theta
-  acceptance <- res@acceptance
-  print(paste('Acceptance rate of MCMC:',round(100*acceptance,4),'%.'))
-  save(chain,chain_x,prob_alpha_beta,prob_theta,acceptance,file = paste0("trials_mcmc/mcmc_spatial_log(",as.character(exp(beta_)),").RData"))
+  acceptance_alpha_beta <- res@acceptance_alpha_beta
+  acceptance_theta <- res@acceptance_theta
+  print(paste('Acceptance rate of alpha, beta:',round(100*acceptance_alpha_beta,4),'%.'))
+  print(paste('Acceptance rate of theta:',round(100*acceptance_theta,4),'%.'))
+  save(chain,chain_x,prob_alpha_beta,prob_theta,acceptance_alpha_beta,
+       acceptance_theta,file = paste0("trials_mcmc/spatial/spatial_ln(",exp(alpha),
+                                      ")_ln(",exp(beta_),").RData"))
   
   param_estimate = rep(0,length(param_name))
   for (i in 1:length(param_name)){
@@ -253,7 +269,7 @@ find_beta <- function(beta_){
   print(paste('We have the starting values of parameters as:',list(round(startvalue,2))))
   print(paste('We have the estimated values of parameters as:',list(round(param_estimate,2))))
   
-  pdf(paste0('trials_mcmc/spatial_beta_log(',as.character(exp(beta_)),").pdf"))
+  pdf(paste0("trials_mcmc/spatial/spatial_ln(",exp(alpha),")_ln(",exp(beta_),").pdf"))
   par(mfrow = c(3,4))
   for (i in 1:length(param_name)){
     plot_hist(chain,burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
@@ -269,7 +285,6 @@ find_beta <- function(beta_){
   legend("topright",c('0.25% quantile','99.75% quantile','real outbreak week'),col=c('red','blue','green'),lty=1)
   
   dev.off()
-  return(chain_x)
 }
 
 
@@ -277,11 +292,9 @@ find_beta <- function(beta_){
 # run different betas
 betas <- c(log(1.5),log(6),log(10),log(20))
 # for (i in betas){ find_beta(i) }
-chain_x <- find_beta(log(10))
+find_beta(beta)
 # apply(chain_x[-(1:burnIn),],2,sum) # cumulative sum of x 
 # plot_x(chain_x,x)
 
-load('trials_mcmc/mcmc_spatial_log(10).RData')
-
-
+# load('trials_mcmc/mcmc_spatial_log(10).RData')
 
