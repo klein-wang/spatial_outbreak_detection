@@ -32,6 +32,12 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 ├── diagnosis.Rmd # notebook for generated data
 ├── maryland.Rmd # notebook for maryland data
 ├── trials_mcmc # store mcmc trials
+│   ├── simple # mcmc trials of simple (independent) model
+│   ├── simple_with_spatial
+│   ├── spatial
+│   └── maryland # mcmc trials of spatial model on Maryland data
+├── summary_plot.R # generate summary plots using results from mcmc_trails
+├── plots # store summary plots
 └── README.md
 ```
 
@@ -39,7 +45,7 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 ### Maryland Covid Data
 
 **Model parameters**
-
+$\alpha$ = log(0.52)
 
 
 ## Evaluation
