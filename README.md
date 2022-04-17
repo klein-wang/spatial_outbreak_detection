@@ -41,6 +41,13 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 └── README.md
 ```
 
+## MCMC Implementation ##
+
+Model | Parameters | Iterations | Burn-In |
+
+simple  | &alpha; &beta; | 30000 | 5000 |
+spatial | &alpha; &beta; &gamma; &Delta; | 3000 | 500 |
+
 
 ### Maryland Covid Data
 
