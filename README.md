@@ -61,5 +61,8 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 ## Evaluation
 
-simple model: precision: 0.67928, recall: 0.70428, f1: 0.69156
-spatial model: precision: 0.68166, recall: 0.81932, f1: 0.74418
+| Trail | &alpha; | &beta; | &gamma; | ROC (spatial) | ROC (simple) |
+| ----- | ------- | ------ | ------- | ------------- | ------------ |
+|       | ln(1);  | ln(2)  | 7/52    | 0.701 |  0.660 |
+
+
