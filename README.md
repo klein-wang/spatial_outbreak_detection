@@ -46,7 +46,7 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 **Model parameters**
 
-&alpha;
+&alpha
 
 
 ## Evaluation
