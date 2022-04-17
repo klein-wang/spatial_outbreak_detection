@@ -45,7 +45,7 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 ### Maryland Covid Data
 
 **Model parameters**
-\alpha = log(0.52)
+&alpha = log(0.52)
 
 
 ## Evaluation
