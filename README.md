@@ -10,7 +10,7 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 - Evaluate the spatio-temporal effect in terms of MCMC estimation
 - Implement MCMC on Maryland Covid data using spatial dependent model 
 
-## Code structure
+## Code Structure
 ```
 ├── data_generate # generate data for both models
 │   ├── generate_data_simple.R # for simple independent model
@@ -41,11 +41,22 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 └── README.md
 ```
 
+## MCMC Implementation ##
+
+| Model | Parameters | Iterations | Burn-In |
+| ----- | ---------- | ---------- | ------- |
+| simple  | &alpha;, &beta;, p | 30000 | 5000 |
+| spatial | &alpha;, &beta;, &gamma;, &Delta; | 3000 | 500 |
+
 
 ### Maryland Covid Data
 
 **Model parameters**
-$\alpha$ = log(0.52)
+
+- &alpha; = log(0.52)
+- &beta; = log(4.35)
+- &gamma; = 0.22
+- &Delta; = 0.58
 
 
 ## Evaluation
