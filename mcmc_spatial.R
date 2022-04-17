@@ -12,7 +12,7 @@ Delta = param_true[4]
 a_theta = c(gamma,Delta,1-gamma-Delta)
 
 startvalue = c(alpha,beta,gamma,Delta) # initial value for alpha and beta
-iterations = 200 #3000, running time 65mins
+iterations = 100 #3000, running time 65mins
 burnIn = 30 #500
 
 
@@ -141,6 +141,7 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
     # MH for alpha, beta
     if (proposal[2]>beta.min & proposal[1]>alpha.min){ # reject beta if it's smaller than beta.min
       probab = exp(posterior(proposal,x,T) - posterior(chain[i,],x,T)) # ratio
+      print(probab)
       prob_alpha_beta[i] = probab  # record probability ratio
       if (runif(1) < probab){ 
         chain[i+1,] = proposal # accept alpha,beta
