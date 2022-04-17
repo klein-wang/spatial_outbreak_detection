@@ -63,6 +63,6 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 | Trail | &alpha; | &beta; | &gamma; | ROC (spatial) | ROC (simple) |
 | ----- | ------- | ------ | ------- | ------------- | ------------ |
-|       | ln(1);  | ln(2)  | 7/52    | 0.701 |  0.660 |
+|       | ln(1)   | ln(2)  | 7/52    | 0.701 |  0.660 |
 
 
