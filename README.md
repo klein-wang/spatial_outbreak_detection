@@ -44,9 +44,8 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 ## MCMC Implementation ##
 
 | Model | Parameters | Iterations | Burn-In |
-
+| ----- | ---------- | ---------- | ------- |
 | simple  | &alpha;, &beta;, p | 30000 | 5000 |
-
 | spatial | &alpha;, &beta;, &gamma;, &Delta; | 3000 | 500 |
 
 
