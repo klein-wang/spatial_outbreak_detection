@@ -141,7 +141,6 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
     # MH for alpha, beta
     if (proposal[2]>beta.min & proposal[1]>alpha.min){ # reject beta if it's smaller than beta.min
       probab = exp(posterior(proposal,x,T) - posterior(chain[i,],x,T)) # ratio
-      print(probab)
       prob_alpha_beta[i] = probab  # record probability ratio
       if (runif(1) < probab){ 
         chain[i+1,] = proposal # accept alpha,beta
