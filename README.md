@@ -54,7 +54,7 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 **Model parameters**
 
 - &alpha; = log(0.52)
-- &beta; = log(4.35)
+- &beta; = log(4.36)
 - &gamma; = 0.22
 - &Delta; = 0.58
 
@@ -63,6 +63,11 @@ Evaluate spatio-temporal effect in predicting possible disease outbreaks.
 
 | Trail | &alpha; | &beta; | &gamma; | ROC (spatial) | ROC (simple) |
 | ----- | ------- | ------ | ------- | ------------- | ------------ |
-|       | ln(1)   | ln(2)  | 7/52    | 0.701 |  0.660 |
+|       | ln(1)   | ln(2)  | 7/52    | 0.701 |  0.668 |
+|       | ln(1)   | ln(3)  | 7/52    | 0.822 |  0.809 |
+|       | ln(1)   | ln(4)  | 7/52    | 0.923 |  0.922 |
+|       | ln(2)   | ln(2)  | 7/52    | 0.797 |  0.797 |
+|       | ln(2)   | ln(3)  | 7/52    | 0.910 |  0.913 |
+|       | ln(4)   | ln(2)  | 7/52    | 0.864 |  0.861 |
 
 
