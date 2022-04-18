@@ -1,7 +1,7 @@
 read_folder = 'data_generate/'
 
 # load data and parameters
-load(paste0(read_folder,'spatial.RData')) # param_true,param_name,y,lambda,x,p,m,d_inv
+load(paste0(read_folder,'spatial_ln(2)_ln(3).RData')) # param_true,param_name,y,lambda,x,p,m,d_inv
 alpha = param_true[1]
 beta = param_true[2]
 alpha.min = log(0.5) # try (log(0),log(2))

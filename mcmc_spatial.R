@@ -12,8 +12,8 @@ Delta = param_true[4]
 a_theta = c(gamma,Delta,1-gamma-Delta)
 
 startvalue = c(alpha,beta,gamma,Delta) # initial value for alpha and beta
-iterations = 100 #3000, running time 65mins
-burnIn = 30 #500
+iterations = 3000 #3000, running time 65mins
+burnIn = 500 #500
 
 
 # local_prob function 
