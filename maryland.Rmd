@@ -29,7 +29,11 @@ for (i in 1:9){ # plot first 9 counties
 
 MCMC
 ```{r}
+load("trials_mcmc/maryland/maryland_ln(0.52)_ln(4.36).RData")
+sigma <- cov(chain[-1,c(1,2)])
+Sigma <- (2.38^2/dim(sigma)[1])*sigma
 
+mvrnorm(n=1,mu=c(0, 0),Sigma=Sigma)
 ```
 
 

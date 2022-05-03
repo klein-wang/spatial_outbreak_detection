@@ -1,5 +1,7 @@
 library(MCMCpack)
+library(MASS)
 read_folder = 'data_maryland/'
+trial = 1
 
 # load data and parameters
 load(paste0(read_folder,"data_maryland.RData"))  # data,x,y,pop,d_inv,param_name,startvalue
@@ -12,8 +14,8 @@ gamma = startvalue[3]
 Delta = startvalue[4]
 a_theta = c(gamma,Delta,1-gamma-Delta)
 
-iterations = 100 #2000, running time 1hr55mins
-burnIn = 10 #200
+iterations = 2000 #2000, running time 1hr55mins
+burnIn = 500 #200
 
 
 # local_prob function 
@@ -127,14 +129,19 @@ posterior <- function(param,x,sum=TRUE){
 
 ### Metropolis Hasting algorithm ###
 
+load("trials_mcmc/maryland/maryland_ln(0.52)_ln(4.36).RData")
+sigma <- cov(chain[-1,c(1,2)])
+Sigma <- (2.38^2/dim(sigma)[1])*sigma
 proposalfunction <- function(param){
   # param: alpha,beta,gamma,Delta
-  tmp = rnorm(2, mean = param[c(1,2)], sd= rep(.1,2)) # proposal distribution of alpha,beta is Normal here
+  tmp = mvrnorm(n=1,mu=param[c(1,2)],Sigma=Sigma) # proposal distribution of alpha,beta
   param[1] = tmp[1]
   param[2] = tmp[2]
   # print(paste(param[c(1,2)]))
   return(param)
 } 
+
+
 
 run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
   # create chain to store alpha,beta,gamma,Delta
@@ -147,30 +154,25 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
   chain_x <- array(NA, c(iterations+1,t,m)) # create a 3 dimensional array
   chain_x[1,,] <- x # startvalue for x at time 0
   a <- 1 # scale parameter in Dirichlet distribution Dir(theta+a*theta_)
-  a2 <- 1
   prob_alpha_beta = 0
   prob_theta = 0
   
   # iterations
   for (i in 1:iterations){
     if(i %% 100==0){print(paste('iteration',i))}
-    if(i <= 5){proposal = chain[i,] # adaptive random walk for alpha,beta
-                    proposal[1] = chain[i,1] + a2
-                    proposal[2] = chain[i,1] + a2
-    }
-    else {proposal = proposalfunction(chain[i,])} # propose new alpha, beta only
     
     # MH for alpha, beta
+    proposal = proposalfunction(chain[i,]) # propose new alpha, beta
     if (proposal[2]>beta.min & proposal[1]>alpha.min){ # reject if it's smaller than min
       probab = exp(posterior(proposal,x,T) - posterior(chain[i,],x,T)) # ratio
       prob_alpha_beta[i] = probab  # record probability ratio
-      if (runif(1) < probab){ 
+      if (is.na(probab) || runif(1) >= probab){
+        chain[i+1,] = chain[i,] # reject
+      } else {
         chain[i+1,] = proposal # accept alpha,beta
-        a2 = 1
-      }else{
-        chain[i+1,] = chain[i,] 
-        a2 = -3 } # reject
-    }else{
+      }
+    }
+    else{
       prob_alpha_beta[i] = 0
       chain[i+1,] = chain[i,] # reject
     }
@@ -269,7 +271,7 @@ find_beta <- function(beta_){
   res <- run_metropolis_MCMC(startvalue,x,iterations,burnIn)
   end_time <- Sys.time()
   run_time <- end_time-start_time
-  print(paste('Running time of MCMC:',round(run_time,2),'mins.'))
+  print(paste('Running time of MCMC:',round(run_time,2),'hrs.'))
   
   chain <- res@chain
   chain_x <- res@chain_x
@@ -281,7 +283,7 @@ find_beta <- function(beta_){
   print(paste('Acceptance rate of theta:',round(100*acceptance_theta,4),'%.'))
   save(chain,chain_x,prob_alpha_beta,prob_theta,acceptance_alpha_beta,
        acceptance_theta,file = paste0("trials_mcmc/maryland/maryland_ln(",round(exp(alpha),2),
-                                      ")_ln(",round(exp(beta_),2),").RData"))
+                                      ")_ln(",round(exp(beta_),2),")_trial",trial,"_.RData"))
   
   param_estimate = rep(0,length(param_name))
   for (i in 1:length(param_name)){
@@ -291,7 +293,7 @@ find_beta <- function(beta_){
   print(paste('We have the estimated values of parameters as:',list(round(param_estimate,2))))
   
   pdf(paste0("trials_mcmc/maryland/maryland_ln(",round(exp(alpha),2),
-             ")_ln(",round(exp(beta_),2),").pdf"))
+             ")_ln(",round(exp(beta_),2),")_trial",trial,"_.pdf"))
   par(mfrow = c(3,4))
   for (i in 1:length(param_name)){
     plot_hist(chain,burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
