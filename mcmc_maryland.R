@@ -1,7 +1,7 @@
 library(MCMCpack)
 library(MASS)
 read_folder = 'data_maryland/'
-trial = 1
+trial = 2
 
 # load data and parameters
 load(paste0(read_folder,"data_maryland.RData"))  # data,x,y,pop,d_inv,param_name,startvalue
@@ -14,7 +14,7 @@ gamma = startvalue[3]
 Delta = startvalue[4]
 a_theta = c(gamma,Delta,1-gamma-Delta)
 
-iterations = 2000 #2000, running time 1hr55mins
+iterations = 10000 #2000, running time 1hr55mins
 burnIn = 500 #200
 
 
@@ -185,11 +185,13 @@ run_metropolis_MCMC <- function(startvalue,x,iterations,burnIn){
     prob3 <- lddirichlet(theta,a_theta+a*theta_) - lddirichlet(theta_,a_theta+a*theta) # ratio of proposal density
     full_prob <- exp(prob1+prob2+prob3)
     prob_theta[i] = full_prob  # record probability ratio
-    if (runif(1) < full_prob){ 
+    if (is.na(full_prob) || runif(1) >= full_prob){
+      a = a+1
+    } else {
       chain[i+1,3] = theta_[1] # accept gamma
       chain[i+1,4] = theta_[2] # accept Delta
       a = max(0,a-3) # adaptive approach on choosing scaling parameter a, to get close to 25% ratio
-    } else{a = a+1}
+    }
     
     # update x, Gibbs sampler
     param <- chain[i+1,]

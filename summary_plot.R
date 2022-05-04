@@ -1,5 +1,5 @@
 model_choice = c("simple","spatial","simple_with_spatial")
-model = model_choice[3] # choosing the model
+model = model_choice[2] # choosing the model
 
 folder = paste0("trials_mcmc/",model,"/",model,"_")
 exp_alpha = c(1,2)
@@ -98,3 +98,20 @@ if (plot_trace==T){
     plot_chain(chain,burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
   }
 }
+
+############# Plots for Maryland #############
+load('data_maryland/data_maryland.RData')
+param_true <- startvalue # startvalue is chosen from the estimated true value
+load("trials_mcmc/maryland/maryland_ln(0.52)_ln(4.36)_trial2_.RData")
+chain_full = chain
+chain <- chain_full[c(1:3000),]
+chain_x <- chain_x[c(1:3000),]
+par(mfrow = c(2,2))
+for (i in 1:length(param_name)){
+  plot_chain(chain,burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
+}
+
+plot_roc(chain_x,model=model)
+title(paste0('alpha = ln',round(exp(param_true[1]),2),', beta = ln',round(exp(param_true[2]),2)))
+plot_x_sum(chain_x,model=model)
+title(paste0('alpha = ln',round(exp(param_true[1]),2),', beta = ln',round(exp(param_true[2]),2)))
