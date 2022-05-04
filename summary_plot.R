@@ -103,9 +103,8 @@ if (plot_trace==T){
 load('data_maryland/data_maryland.RData')
 param_true <- startvalue # startvalue is chosen from the estimated true value
 load("trials_mcmc/maryland/maryland_ln(0.52)_ln(4.36)_trial2_.RData")
-chain_full = chain
-chain <- chain_full[c(1:3000),]
-chain_x <- chain_x[c(1:3000),]
+chain <- chain[c(1:3000),]
+chain_x <- chain_x[c(1:3000),,]
 par(mfrow = c(2,2))
 for (i in 1:length(param_name)){
   plot_chain(chain,burnIn = burnIn, param_index = i, param_name = param_name, param_true = param_true)
